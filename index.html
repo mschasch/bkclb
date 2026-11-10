@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Buchclub Abstimmung</title>
+
+<style>
+body {
+    font-family: Arial, sans-serif;
+    max-width: 800px;
+    margin: auto;
+    padding: 20px;
+}
+
+h1,h2 {
+    color: #333;
+}
+
+.card {
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 20px;
+}
+
+button {
+    padding: 10px 20px;
+    cursor: pointer;
+}
+
+.hidden {
+    display: none;
+}
+
+.success {
+    color: green;
+}
+
+.error {
+    color: red;
+}
+</style>
+</head>
+<body>
+
+<h1>Buchclub Abstimmung</h1>
+
+<div id="loginCard" class="card">
+
+    <h2>Anmeldung</h2>
+
+    <label>E-Mail</label><br>
+    <input id="email" type="email"><br><br>
+
+    <label>Passwort</label><br>
+    <input id="password" type="password"><br><br>
+
+    <button onclick="login()">Anmelden</button>
+
+    <p id="loginMessage"></p>
+
+</div>
+
+<div id="voteCard" class="card hidden">
+
+    <h2>Bücher</h2>
+
+    <label>
+        <input type="checkbox" value="Dune" class="book">
+        Dune
+    </label><br>
+
+    <label>
+        <input type="checkbox" value="Der Name des Windes" class="book">
+        Der Name des Windes
+    </label><br>
+
+    <label>
+        <input type="checkbox" value="Die drei Sonnen" class="book">
+        Die drei Sonnen
+    </label>
+
+    <hr>
+
+    <h2>Termine</h2>
+
+    <label>
+        <input type="checkbox" value="2026-12-12" class="date">
+        12.12.2026
+    </label><br>
+
+    <label>
+        <input type="checkbox" value="2026-12-19" class="date">
+        19.12.2026
+    </label><br>
+
+    <label>
+        <input type="checkbox" value="2027-01-09" class="date">
+        09.01.2027
+    </label><br>
+
+    <label>
+        <input type="checkbox" value="2027-01-16" class="date">
+        16.01.2027
+    </label><br>
+
+    <label>
+        <input type="checkbox" value="2027-01-23" class="date">
+        23.01.2027
+    </label>
+
+    <br><br>
+
+    <button onclick="saveVote()">
+        Abstimmung speichern
+    </button>
+
+    <button onclick="logout()">
+        Abmelden
+    </button>
+
+    <p id="voteMessage"></p>
+
+</div>
+
+<script type="module">
+
+import { initializeApp }
+from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
+
+import {
+    getAuth,
+    signInWithEmailAndPassword,
+    signOut,
+    onAuthStateChanged
+}
+from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
+
+import {
+    getFirestore,
+    doc,
+    setDoc,
+    getDoc
+}
+from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
+
+
+const firebaseConfig = {
+  apiKey: "DEIN_API_KEY",
+  authDomain: "DEIN_PROJEKT.firebaseapp.com",
+  projectId: "DEIN_PROJEKT",
+  storageBucket: "DEIN_PROJEKT.appspot.com",
+  messagingSenderId: "XXXXXXXX",
+  appId: "XXXXXXXX"
+};
+
+const app = initializeApp(firebaseConfig);
+
+const auth = getAuth(app);
+const db = getFirestore(app);
+
+window.login = async function() {
+
+    const email =
+        document.getElementById("email").value;
+
+    const password =
+        document.getElementById("password").value;
+
+    try {
+
+        await signInWithEmailAndPassword(
+            auth,
+            email,
+            password
+        );
+
+        document.getElementById(
+            "loginMessage"
+        ).innerHTML = "";
+
+    }
+    catch(error) {
+
+        document.getElementById(
+            "loginMessage"
+        ).innerHTML =
+        "<span class='error'>Login fehlgeschlagen</span>";
+
+    }
+};
+
+window.logout = async function() {
+
+    await signOut(auth);
+
+};
+
+window.saveVote = async function() {
+
+    const user = auth.currentUser;
+
+    const books =
+        [...document.querySelectorAll(".book:checked")]
+        .map(x => x.value);
+
+    const dates =
+        [...document.querySelectorAll(".date:checked")]
+        .map(x => x.value);
+
+    try {
+
+        await setDoc(
+            doc(db, "votes", user.uid),
+            {
+                email: user.email,
+                books: books,
+                dates: dates,
+                updatedAt:
+                    new Date().toISOString()
+            }
+        );
+
+        document.getElementById(
+            "voteMessage"
+        ).innerHTML =
+        "<span class='success'>Abstimmung gespeichert</span>";
+
+    }
+    catch(error) {
+
+        document.getElementById(
+            "voteMessage"
+        ).innerHTML =
+        "<span class='error'>Fehler beim Speichern</span>";
+
+    }
+
+};
+
+onAuthStateChanged(auth, async (user) => {
+
+    if (!user) {
+
+        document.getElementById(
+            "loginCard"
+        ).classList.remove("hidden");
+
+        document.getElementById(
+            "voteCard"
+        ).classList.add("hidden");
+
+        return;
+    }
+
+    document.getElementById(
+        "loginCard"
+    ).classList.add("hidden");
+
+    document.getElementById(
+        "voteCard"
+    ).classList.remove("hidden");
+
+    const voteRef =
+        doc(db, "votes", user.uid);
+
+    const voteDoc =
+        await getDoc(voteRef);
+
+    if (!voteDoc.exists())
+        return;
+
+    const data = voteDoc.data();
+
+    document
+      .querySelectorAll(".book")
+      .forEach(cb =>
+            cb.checked =
+               data.books?.includes(cb.value)
+      );
+
+    document
+      .querySelectorAll(".date")
+      .forEach(cb =>
+            cb.checked =
+               data.dates?.includes(cb.value)
+      );
+});
+
+</script>
+
+</body>
+</html>
