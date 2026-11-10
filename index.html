@@ -418,10 +418,11 @@ onAuthStateChanged(auth, async(user)=>{
     document.getElementById("voteCard")
         .classList.remove("hidden");
 
+    await loadUserVote(user);
+    
     document.getElementById("resultsCard")
         .classList.remove("hidden");
 
-    await loadUserVote(user);
     await loadResults();
 
 });
