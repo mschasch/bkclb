@@ -3,60 +3,89 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Buchclub Abstimmung</title>
+
+<title>Buchclub Voting</title>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <style>
-body {
-    font-family: Arial, sans-serif;
-    max-width: 800px;
-    margin: auto;
-    padding: 20px;
+
+body{
+    font-family:Arial,sans-serif;
+    max-width:1000px;
+    margin:auto;
+    padding:20px;
+    background:#f5f5f5;
 }
 
-h1,h2 {
-    color: #333;
+.card{
+    background:white;
+    padding:20px;
+    border-radius:10px;
+    margin-bottom:20px;
+    box-shadow:0 2px 5px rgba(0,0,0,0.1);
 }
 
-.card {
-    border: 1px solid #ddd;
-    border-radius: 8px;
-    padding: 20px;
-    margin-bottom: 20px;
+.hidden{
+    display:none;
 }
 
-button {
-    padding: 10px 20px;
-    cursor: pointer;
+button{
+    background:#2563eb;
+    color:white;
+    border:none;
+    padding:10px 20px;
+    border-radius:6px;
+    cursor:pointer;
+    margin-right:10px;
 }
 
-.hidden {
-    display: none;
+button:hover{
+    background:#1d4ed8;
 }
 
-.success {
-    color: green;
+input[type=email],
+input[type=password]{
+    width:100%;
+    padding:10px;
+    margin-top:5px;
+    margin-bottom:15px;
+    border:1px solid #ddd;
+    border-radius:6px;
 }
 
-.error {
-    color: red;
+.success{
+    color:green;
 }
+
+.error{
+    color:red;
+}
+
+canvas{
+    max-height:350px;
+}
+
 </style>
+
 </head>
 <body>
 
-<h1>Buchclub Abstimmung</h1>
+<h1>📚 Buchclub Abstimmung</h1>
 
 <div id="loginCard" class="card">
 
     <h2>Anmeldung</h2>
 
-    <label>E-Mail</label><br>
-    <input id="email" type="email"><br><br>
+    <label>E-Mail</label>
+    <input id="email" type="email">
 
-    <label>Passwort</label><br>
-    <input id="password" type="password"><br><br>
+    <label>Passwort</label>
+    <input id="password" type="password">
 
-    <button onclick="login()">Anmelden</button>
+    <button onclick="login()">
+        Anmelden
+    </button>
 
     <p id="loginMessage"></p>
 
@@ -64,49 +93,49 @@ button {
 
 <div id="voteCard" class="card hidden">
 
-    <h2>Bücher</h2>
+    <h2>Buchauswahl</h2>
 
     <label>
-        <input type="checkbox" value="Dune" class="book">
+        <input type="checkbox" class="book" value="Dune">
         Dune
     </label><br>
 
     <label>
-        <input type="checkbox" value="Der Name des Windes" class="book">
+        <input type="checkbox" class="book" value="Der Name des Windes">
         Der Name des Windes
     </label><br>
 
     <label>
-        <input type="checkbox" value="Die drei Sonnen" class="book">
+        <input type="checkbox" class="book" value="Die drei Sonnen">
         Die drei Sonnen
     </label>
 
     <hr>
 
-    <h2>Termine</h2>
+    <h2>Terminwahl</h2>
 
     <label>
-        <input type="checkbox" value="2026-12-12" class="date">
+        <input type="checkbox" class="date" value="12.12.2026">
         12.12.2026
     </label><br>
 
     <label>
-        <input type="checkbox" value="2026-12-19" class="date">
+        <input type="checkbox" class="date" value="19.12.2026">
         19.12.2026
     </label><br>
 
     <label>
-        <input type="checkbox" value="2027-01-09" class="date">
+        <input type="checkbox" class="date" value="09.01.2027">
         09.01.2027
     </label><br>
 
     <label>
-        <input type="checkbox" value="2027-01-16" class="date">
+        <input type="checkbox" class="date" value="16.01.2027">
         16.01.2027
     </label><br>
 
     <label>
-        <input type="checkbox" value="2027-01-23" class="date">
+        <input type="checkbox" class="date" value="23.01.2027">
         23.01.2027
     </label>
 
@@ -121,6 +150,20 @@ button {
     </button>
 
     <p id="voteMessage"></p>
+
+</div>
+
+<div id="resultsCard" class="card hidden">
+
+    <h2>📊 Aktueller Stand</h2>
+
+    <h3>Bücher</h3>
+    <canvas id="booksChart"></canvas>
+
+    <br><br>
+
+    <h3>Termine</h3>
+    <canvas id="datesChart"></canvas>
 
 </div>
 
@@ -141,25 +184,31 @@ import {
     getFirestore,
     doc,
     setDoc,
-    getDoc
+    getDoc,
+    collection,
+    getDocs
 }
 from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
 
 const firebaseConfig = {
+
   apiKey: "AIzaSyD280p-RuyGrNiOlUJ1k2yJw25RV8oxEKQ",
   authDomain: "bkclb-voting.firebaseapp.com",
   projectId: "bkclb-voting",
   storageBucket: "bkclb-voting.firebasestorage.app",
   messagingSenderId: "949236669090",
   appId: "1:949236669090:web:31e39a3ed8c0fffe6bd5fb"
+
 };
 
 const app = initializeApp(firebaseConfig);
-
 const auth = getAuth(app);
 const db = getFirestore(app);
 
-window.login = async function() {
+let booksChart = null;
+let datesChart = null;
+
+window.login = async function(){
 
     const email =
         document.getElementById("email").value;
@@ -167,7 +216,7 @@ window.login = async function() {
     const password =
         document.getElementById("password").value;
 
-    try {
+    try{
 
         await signInWithEmailAndPassword(
             auth,
@@ -175,116 +224,206 @@ window.login = async function() {
             password
         );
 
-        document.getElementById(
-            "loginMessage"
-        ).innerHTML = "";
-
     }
-    catch(error) {
+    catch{
 
-        document.getElementById(
-            "loginMessage"
-        ).innerHTML =
-        "<span class='error'>Login fehlgeschlagen</span>";
+        document.getElementById("loginMessage").innerHTML =
+            "<span class='error'>Anmeldung fehlgeschlagen</span>";
 
     }
 };
 
-window.logout = async function() {
+window.logout = async function(){
 
     await signOut(auth);
 
 };
 
-window.saveVote = async function() {
+window.saveVote = async function(){
 
     const user = auth.currentUser;
 
     const books =
         [...document.querySelectorAll(".book:checked")]
-        .map(x => x.value);
+        .map(el => el.value);
 
     const dates =
         [...document.querySelectorAll(".date:checked")]
-        .map(x => x.value);
+        .map(el => el.value);
 
-    try {
+    try{
 
         await setDoc(
-            doc(db, "votes", user.uid),
+            doc(db,"votes",user.uid),
             {
-                email: user.email,
-                books: books,
-                dates: dates,
-                updatedAt:
-                    new Date().toISOString()
+                books,
+                dates,
+                updatedAt:new Date().toISOString()
             }
         );
 
-        document.getElementById(
-            "voteMessage"
-        ).innerHTML =
-        "<span class='success'>Abstimmung gespeichert</span>";
+        document.getElementById("voteMessage").innerHTML =
+            "<span class='success'>✓ gespeichert</span>";
+
+        await loadResults();
 
     }
-    catch(error) {
+    catch{
 
-        document.getElementById(
-            "voteMessage"
-        ).innerHTML =
-        "<span class='error'>Fehler beim Speichern</span>";
+        document.getElementById("voteMessage").innerHTML =
+            "<span class='error'>Speichern fehlgeschlagen</span>";
 
     }
 
 };
 
-onAuthStateChanged(auth, async (user) => {
-
-    if (!user) {
-
-        document.getElementById(
-            "loginCard"
-        ).classList.remove("hidden");
-
-        document.getElementById(
-            "voteCard"
-        ).classList.add("hidden");
-
-        return;
-    }
-
-    document.getElementById(
-        "loginCard"
-    ).classList.add("hidden");
-
-    document.getElementById(
-        "voteCard"
-    ).classList.remove("hidden");
+async function loadUserVote(user){
 
     const voteRef =
-        doc(db, "votes", user.uid);
+        doc(db,"votes",user.uid);
 
     const voteDoc =
         await getDoc(voteRef);
 
-    if (!voteDoc.exists())
-        return;
+    if(!voteDoc.exists()) return;
 
     const data = voteDoc.data();
 
     document
       .querySelectorAll(".book")
-      .forEach(cb =>
-            cb.checked =
-               data.books?.includes(cb.value)
+      .forEach(box =>
+        box.checked =
+          data.books?.includes(box.value)
       );
 
     document
       .querySelectorAll(".date")
-      .forEach(cb =>
-            cb.checked =
-               data.dates?.includes(cb.value)
+      .forEach(box =>
+        box.checked =
+          data.dates?.includes(box.value)
       );
+
+}
+
+async function loadResults(){
+
+    const snapshot =
+        await getDocs(
+            collection(db,"votes")
+        );
+
+    const books = {
+        "Dune":0,
+        "Der Name des Windes":0,
+        "Die drei Sonnen":0
+    };
+
+    const dates = {
+        "12.12.2026":0,
+        "19.12.2026":0,
+        "09.01.2027":0,
+        "16.01.2027":0,
+        "23.01.2027":0
+    };
+
+    snapshot.forEach(doc => {
+
+        const vote = doc.data();
+
+        vote.books?.forEach(book => {
+            books[book]++;
+        });
+
+        vote.dates?.forEach(date => {
+            dates[date]++;
+        });
+
+    });
+
+    if(booksChart){
+        booksChart.destroy();
+    }
+
+    if(datesChart){
+        datesChart.destroy();
+    }
+
+    booksChart = new Chart(
+        document.getElementById("booksChart"),
+        {
+            type: "bar",
+            data: {
+                labels: Object.keys(books),
+                datasets: [{
+                    label: "Stimmen",
+                    data: Object.values(books),
+                    backgroundColor: "#2563eb"
+                }]
+            },
+            options: {
+                responsive: true,
+                scales: {
+                    y: {
+                        beginAtZero:true
+                    }
+                }
+            }
+        }
+    );
+
+    datesChart = new Chart(
+        document.getElementById("datesChart"),
+        {
+            type: "bar",
+            data: {
+                labels: Object.keys(dates),
+                datasets: [{
+                    label: "Verfügbarkeiten",
+                    data: Object.values(dates),
+                    backgroundColor: "#16a34a"
+                }]
+            },
+            options: {
+                responsive:true,
+                scales:{
+                    y:{
+                        beginAtZero:true
+                    }
+                }
+            }
+        }
+    );
+
+}
+
+onAuthStateChanged(auth, async(user)=>{
+
+    if(!user){
+
+        document.getElementById("loginCard")
+            .classList.remove("hidden");
+
+        document.getElementById("voteCard")
+            .classList.add("hidden");
+
+        document.getElementById("resultsCard")
+            .classList.add("hidden");
+
+        return;
+    }
+
+    document.getElementById("loginCard")
+        .classList.add("hidden");
+
+    document.getElementById("voteCard")
+        .classList.remove("hidden");
+
+    document.getElementById("resultsCard")
+        .classList.remove("hidden");
+
+    await loadUserVote(user);
+    await loadResults();
+
 });
 
 </script>
